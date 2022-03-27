@@ -1,0 +1,141 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Introduction
+
+Bellabeat is a high-tech manufacturer of health-focused
+products for women. Bellabeat is a successful small company, but they have the potential to become a larger player in the
+global smart device market. The company believes this opportunity can be unlocked through analysing smart device fitness data. The insights discovered can help guide the marketing strategy for the company.
+
+## Questions for the analysis
+
+1. What are some trends in smart device usage?
+2. How could these trends apply to Bellabeat customers?
+3. How could these trends help influence Bellabeat marketing strategy?
+
+## Business task
+
+Analyse smart device usage data to gain insight into how consumers are already using their smart devices, and apply the insights on a Bellabeat product to produce high-level recommendations for the marketing strategy.
+
+## Loading packages
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+library(skimr)
+```
+
+## Loading data
+
+```{r}
+activity <- read_csv("dailyActivity.csv")
+sleep <- read_csv("sleepDay.csv")
+steps <- read_csv("dailySteps.csv")
+calories <- read_csv("dailyCalories.csv")
+intensities <- read_csv("hourlyIntensities.csv")
+```
+
+## Fixing date and time formatting
+
+```{r}
+sleep$SleepDay=as.POSIXct(sleep$SleepDay, format="%d/%m/%Y %I:%M:%S %p", tz=Sys.timezone())
+sleep$date <- format(sleep$SleepDay, format = "%d/%m/%y")
+
+activity$ActivityDate=as.POSIXct(activity$ActivityDate, format="%d/%m/%Y", tz=Sys.timezone())
+activity$date <- format(activity$ActivityDate, format = "%d/%m/%y")
+
+calories$ActivityDay=as.POSIXct(calories$ActivityDay, format="%d/%m/%Y", tz=Sys.timezone())
+calories$date <- format(calories$ActivityDay, format = "%d/%m/%y")
+
+steps$ActivityDay=as.POSIXct(steps$ActivityDay, format="%d/%m/%Y", tz=Sys.timezone())
+steps$date <- format(steps$ActivityDay, format = "%d/%m/%y")
+
+intensities$ActivityHour=as.POSIXct(intensities$ActivityHour, format="%d/%m/%Y  %I:%M:%S %p", tz=Sys.timezone())
+intensities$date <- format(intensities$ActivityHour, format = "%d/%m/%y")
+intensities$time <- format(intensities$ActivityHour, format = "%H:%M:%S")
+```
+
+## Summary
+
+```{r}
+n_distinct(activity$Id)
+n_distinct(calories$Id)
+n_distinct(sleep$Id)
+n_distinct(steps$Id)
+n_distinct(intensities$Id)
+```
+
+This informs us about the number of participants for each data set. As there are 33 participants in this survey, there seems to be sufficient observations to conduct an analysis.
+
+
+```{r}
+# Activity
+summary(select(activity, TotalSteps, TotalDistance, SedentaryMinutes, Calories))
+# Sleep
+sleep$minutesdiff <- sleep$TotalTimeInBed - sleep$TotalMinutesAsleep
+summary(select(sleep, TotalSleepRecords, TotalMinutesAsleep, TotalTimeInBed, minutesdiff))
+# Steps
+summary(select(steps, StepTotal))
+# Calories
+summary(select(calories, Calories))
+# Intensities
+summary(select(intensities, TotalIntensity))
+```
+
+- Average number of steps: 7638
+
+A study by the University of Massachusetts Amherst has shown that logging 7000 steps a day can go a long way toward better health. It should then be the recommended number of steps on the app.
+
+- Average minutes asleep: 419.5 (7 hours)
+
+- Average sedentary minutes: 991.2 (16 hours)
+
+With the average sleeping time being 7 hours, we can assume the rest of the sedentary time is spent working in a job that doesn't require a lot of physical activity, such as an office job. It is still a long time without any activity, therefore users should be reminded every hour to get up and stretch or walk around.
+
+
+## Visualisations
+
+```{r}
+# Scatter plot, steps vs calories
+
+ggplot(data=activity, aes(x=TotalSteps, y=Calories)) + geom_point() + geom_smooth() + labs(title="Total Steps vs. Calories")
+```
+
+There's a positive correlation between the number of steps and the calories burned, which makes sense. The more active we are, the more calories we burn. We can also see that the most common number of steps is between 5000 and 10000.
+
+```{r}
+# Scatter plot, minutes asleep vs time in bed
+
+ggplot(data=sleep, aes(x=TotalMinutesAsleep, y=TotalTimeInBed)) + geom_point() + geom_smooth() + labs(title="Minutes in Bed vs. Minutes Asleep")
+```
+
+There's also a positive correlation between the number of minutes in bed and the minutes asleep. With the average difference between the two being 39 minutes, the app can ask the users to set a desired bed time and send a notification to go to bed 45 minutes earlier.
+
+```{r}
+# Histogram, activity intensity throughout the day
+
+intensity_new <- intensities %>%
+  group_by(time) %>%
+  drop_na() %>%
+  summarise(mean_total_int = mean(TotalIntensity))
+
+ggplot(data=intensity_new, aes(x=time, y=mean_total_int)) + geom_histogram(stat="identity") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title="Average Total Intensity vs. Time")
+```
+
+For our sample, activity begins around 5am, peaks at 10am in the morning, then further increases between 5 and 7pm, likely after leaving work. This would be the optimal time for a reminder to go for a walk or do some exercise.
+
+## High-level recommendations
+
+- 7000 steps should be the recommended number of steps on the app.
+- In order to reduce sedentary time, users should be reminded every hour to get up and stretch or walk around.
+- We can ask the users to set a desired bed time and send a notification to go to bed 45 minutes earlier.
+- We can send users a reminder to do a physical activity between 5 and 7pm.
+
